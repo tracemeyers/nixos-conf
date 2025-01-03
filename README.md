@@ -12,6 +12,7 @@ $ quickget nixos 24.11 minimal
 ```
 
 2. Start the VM
+
 ```
 $ quickemu --vm nixos-24.11-minimal.conf
 ~/nixos ~/nixos
@@ -39,11 +40,13 @@ Quickemu 4.9.5 using /nix/store/sqcqpkqvbxsx8wmc6bixdgfxjmibxmdw-qemu-8.2.7/bin/
 ```
 
 3. Set the password for the `nixos` user within the VM terminal.
+
 ```
 [nixos@nixos:~]$ passwd
 ```
 
 4. ssh and generate the nixos hardware config from within the VM
+
 ```
 $ ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no nixos@localhost -p 22220
 [nixos@nixos:~]$ nixos-generate-config --dir /tmp
