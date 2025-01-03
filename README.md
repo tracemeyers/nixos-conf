@@ -2,9 +2,19 @@
 
 NixOS flake configurations
 
-## Getting Started
+## Getting Started 
 
-### VM
+### NixOS Installer
+
+There are two hardware choices to get booted into a NixOS installer:
+1. Physical
+2. VM
+
+#### Physical
+
+TODO
+
+#### VM
 
 1. Create a VM
 ```
@@ -45,12 +55,40 @@ Quickemu 4.9.5 using /nix/store/sqcqpkqvbxsx8wmc6bixdgfxjmibxmdw-qemu-8.2.7/bin/
 [nixos@nixos:~]$ passwd
 ```
 
-4. ssh and generate the nixos hardware config from within the VM
+4. ssh into VM
 
 ```
 $ ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no nixos@localhost -p 22220
+[nixos@nixos:~]$
+```
+
+### Initial Configuration
+
+1. Generate the nixos hardware config
+
+```
 [nixos@nixos:~]$ nixos-generate-config --dir /tmp
 writing /tmp/hardware-configuration.nix...
 writing /tmp/configuration.nix...
 For more hardware-specific settings, see https://github.com/NixOS/nixos-hardware.
+```
+
+2. Copy the boot settings to `./nixos/<machine-name>/default.nix`. Ex: copy the fields that contain non-empty values which are the availableKernelModules and kernelModules.
+
+```
+[nixos@nixos:~]$ mkdir -p ./nixos/proof
+[nixos@nixos:~]$ grep -i boot.*module /tmp/hardware-configuration.nix | tee ./nixos/proof/default.nix
+  boot.initrd.availableKernelModules = [ "xhci_pci" "ohci_pci" "ehci_pci" "virtio_pci" "virtio_scsi" "ahci" "usbhid" "sd_mod" "sr_mod" ];
+  boot.initrd.kernelModules = [ ];
+  boot.kernelModules = [ "kvm-intel" ];
+  boot.extraModulePackages = [ ];
+```
+
+3. Download wimpy's install script and modify it. TODO fork it.
+
+```
+[nixos@nixos:~]$ curl -sL https://raw.githubusercontent.com/wimpysworld/nix-config/main/nixos/_mixins/scripts/install-system/./install-system.sh -O install-system.sh
+[nixos@nixos:~]$ chmod u+x install-system.sh 
+[nixos@nixos:~]$ sed -i 's,martin,cat,g' install-system.sh 
+[nixos@nixos:~]$ sed -i 's,wimpysworld/nix-config,tracemeyers/nixos-conf,g' install-system.sh 
 ```
