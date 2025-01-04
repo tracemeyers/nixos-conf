@@ -73,22 +73,104 @@ writing /tmp/configuration.nix...
 For more hardware-specific settings, see https://github.com/NixOS/nixos-hardware.
 ```
 
-2. Copy the boot settings to `./nixos/<machine-name>/default.nix`. Ex: copy the fields that contain non-empty values which are the availableKernelModules and kernelModules.
-
-```
-[nixos@nixos:~]$ mkdir -p ./nixos/proof
-[nixos@nixos:~]$ grep -i boot.*module /tmp/hardware-configuration.nix | tee ./nixos/proof/default.nix
-  boot.initrd.availableKernelModules = [ "xhci_pci" "ohci_pci" "ehci_pci" "virtio_pci" "virtio_scsi" "ahci" "usbhid" "sd_mod" "sr_mod" ];
-  boot.initrd.kernelModules = [ ];
-  boot.kernelModules = [ "kvm-intel" ];
-  boot.extraModulePackages = [ ];
-```
-
-3. Download wimpy's install script and modify it. TODO fork it.
+2. Download wimpy's install script and modify it with your repo and default user. TODO fork it.
 
 ```
 [nixos@nixos:~]$ curl -sL https://raw.githubusercontent.com/wimpysworld/nix-config/main/nixos/_mixins/scripts/install-system/./install-system.sh -O install-system.sh
-[nixos@nixos:~]$ chmod u+x install-system.sh 
-[nixos@nixos:~]$ sed -i 's,martin,cat,g' install-system.sh 
+[nixos@nixos:~]$ chmod u+x install-system.sh
 [nixos@nixos:~]$ sed -i 's,wimpysworld/nix-config,tracemeyers/nixos-conf,g' install-system.sh 
+[nixos@nixos:~]$ sed -i 's,martin,cat,g' install-system.sh 
+```
+
+3. Run the installer so it sets up the git repo and then FAIL.
+
+```
+[nixos@nixos:~]$ ./install-system.sh proof cat
+umount: /mnt: not mounted
+Cloning into '/home/nixos/Zero/nix-config'...
+remote: Enumerating objects: 12, done.
+remote: Counting objects: 100% (12/12), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 12 (delta 2), reused 0 (delta 0), pack-reused 0 (from 0)
+Receiving objects: 100% (12/12), 4.98 KiB | 4.98 MiB/s, done.
+Resolving deltas: 100% (2/2), done.
+~/Zero/nix-config ~
+Already on 'main'
+Your branch is up to date with 'origin/main'.
+WARNING! /home/nixos/.config/sops/age/keys.txt was not found.
+         Do you want to continue without it?
+
+Are you sure? [y/N]y
+ERROR! install-system.sh could not find the required nixos/proof/disks.nix
+```
+
+4. Copy `hardware-configuration.nix` to `~/Zero/nix-config/nixos/<machine>/default.nix`
+
+```
+[nixos@nixos:~/Zero/nix-config]$ mkdir -p ~/Zero/nix-config/nixos/proof
+[nixos@nixos:~/Zero/nix-config]$ cp /tmp/hardware-configuration.nix ~/Zero/nix-config/nixos/proof/default.nix
+```
+
+5. Modify `~/Zero/nix-config/nixos/<machine>/default.nix` to...
+- Remove everything except the first line, imports, and boot fields.
+- Add to imports `disks.nix`
+
+```
+{ modulesPath, ... }:
+
+{
+  imports =
+    [ (modulesPath + "/profiles/qemu-guest.nix")
+      ./disks.nix
+    ];
+
+  boot.initrd.availableKernelModules = [ "xhci_pci" "ohci_pci" "ehci_pci" "virtio_pci" "ahci" "usbhid" "sr_mod" "virtio_blk" ];
+  boot.initrd.kernelModules = [ ];
+  boot.kernelModules = [ "kvm-intel" ];
+  boot.extraModulePackages = [ ];
+}
+```
+
+6. Add `~/Zero/nix-config/nixos/<machine>/disks.nix`. Customize it as needed.
+
+```
+{ disks ? [ "/dev/vda" ], ... }:
+{
+  disko.devices = {
+    disk = {
+      vda = {
+        type = "disk";
+        device = builtins.elemAt disks 0;
+        content = {
+          type = "table";
+          format = "gpt";
+          partitions = [{
+            name = "ESP";
+            start = "0%";
+            end = "550MiB";
+            bootable = true;
+            flags = [ "esp" ];
+            fs-type = "fat32";
+            content = {
+              type = "filesystem";
+              format = "vfat";
+              mountpoint = "/boot";
+            };
+          }
+          {
+            name = "root";
+            start = "550MiB";
+            end = "100%";
+            content = {
+              type = "filesystem";
+              extraArgs = [ ];
+              format = "ext4";
+              mountpoint = "/";
+            };
+          }];
+        };
+      };
+    };
+  };
+}
 ```
